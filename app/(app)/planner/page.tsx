@@ -165,63 +165,6 @@ export default function PlannerPage() {
 
     const payloadBase64 = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
 
-    const dayNames = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-
-    const weekNow = new Date();
-    const weekStart = new Date(weekNow);
-    weekStart.setHours(0, 0, 0, 0);
-    weekStart.setDate(weekNow.getDate() - weekNow.getDay());
-
-    const weekColumns = Array.from({ length: 7 }, (_, index) => {
-      const date = new Date(weekStart);
-      date.setDate(weekStart.getDate() + index);
-
-      const dayTasks = tasks
-        .filter((task) => task.dayOfWeek === index)
-        .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
-
-      const taskCards = dayTasks.length
-        ? dayTasks.map((task) => `
-            <li class="task-item" style="border-left:4px solid ${task.color}">
-              <strong>${task.title}</strong>
-              <span>${new Date(task.start).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} - ${new Date(task.end).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
-              <small>${task.category}</small>
-            </li>`).join('')
-        : '<li class="empty">Sem tarefas</li>';
-
-      return `
-        <article class="day-column">
-          <h3>${dayNames[index]}, ${date.toLocaleDateString('pt-BR')}</h3>
-          <ul>${taskCards}</ul>
-        </article>`;
-    }).join('');
-
-    const monthNow = new Date();
-    const monthStart = new Date(monthNow.getFullYear(), monthNow.getMonth(), 1);
-    const monthEnd = new Date(monthNow.getFullYear(), monthNow.getMonth() + 1, 0);
-
-    const calendarCells: string[] = [];
-    const leading = monthStart.getDay();
-    for (let i = 0; i < leading; i += 1) {
-      calendarCells.push('<div class="calendar-cell muted"></div>');
-    }
-
-    for (let day = 1; day <= monthEnd.getDate(); day += 1) {
-      const current = new Date(monthNow.getFullYear(), monthNow.getMonth(), day);
-      const weekday = current.getDay();
-      const dayTasks = tasks.filter((task) => task.dayOfWeek === weekday);
-
-      const bullets = dayTasks.slice(0, 3).map((task) => `<span class="bullet" style="background:${task.color}" title="${task.title}"></span>`).join('');
-
-      calendarCells.push(`
-        <div class="calendar-cell">
-          <div class="calendar-top">
-            <strong>${day}</strong>
-            <div class="bullets">${bullets}</div>
-          </div>
-        </div>`);
-    }
-
     const html = `<!doctype html>
 <html lang="pt-BR">
 <head>
@@ -232,49 +175,192 @@ export default function PlannerPage() {
     body { font-family: Inter, Arial, sans-serif; margin: 0; background: #0b132b; color: #e2e8f0; }
     .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
     .header { background: #111c44; border: 1px solid #26335f; border-radius: 14px; padding: 16px; margin-bottom: 18px; }
-    h1,h2,h3 { margin: 0; }
-    h2 { margin-bottom: 10px; font-size: 18px; }
     .subtitle { color: #93a4d1; margin-top: 8px; font-size: 14px; }
-    .week-grid { display: grid; grid-template-columns: repeat(7, minmax(180px, 1fr)); gap: 10px; overflow-x: auto; padding-bottom: 4px; }
+    .week-toolbar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; margin: 10px 0; }
+    .week-nav { display: flex; gap: 8px; }
+    .btn { background: #0f1738; border: 1px solid #2a3a66; color: #e2e8f0; border-radius: 8px; padding: 8px 12px; cursor: pointer; }
+    .week-title { font-weight: 600; color: #c7d3f6; }
+    .week-grid { display: grid; grid-template-columns: repeat(7, minmax(180px, 1fr)); gap: 10px; overflow-x: auto; }
     .day-column { background: #111c44; border: 1px solid #26335f; border-radius: 12px; padding: 10px; min-height: 220px; }
-    .day-column h3 { font-size: 14px; margin-bottom: 8px; }
+    .day-column h3 { font-size: 14px; margin: 0 0 8px; }
     .day-column ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-    .task-item { background: #0f1738; border: 1px solid #1f2a52; border-radius: 8px; padding: 8px; display: flex; flex-direction: column; gap: 3px; }
+    .task-item { background: #0f1738; border: 1px solid #1f2a52; border-left-width: 4px; border-radius: 8px; padding: 8px; display: flex; flex-direction: column; gap: 3px; }
     .task-item strong { font-size: 13px; }
     .task-item span, .task-item small { font-size: 12px; color: #b8c4e8; }
     .empty { color: #8ea0cd; font-size: 12px; }
     .month-wrap { margin-top: 20px; background: #111c44; border: 1px solid #26335f; border-radius: 12px; padding: 12px; }
+    .month-title { margin: 0 0 8px; }
     .calendar-head { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-bottom: 8px; color: #9cb0df; font-size: 12px; }
     .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
-    .calendar-cell { min-height: 72px; background: #0f1738; border: 1px solid #1f2a52; border-radius: 8px; padding: 8px; }
+    .calendar-cell { min-height: 74px; background: #0f1738; border: 1px solid #1f2a52; border-radius: 8px; padding: 8px; }
     .calendar-cell.muted { opacity: 0.35; }
     .calendar-top { display: flex; justify-content: space-between; align-items: center; }
-    .bullets { display: flex; gap: 4px; }
+    .bullets { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
     .bullet { width: 8px; height: 8px; border-radius: 999px; display: inline-block; }
+    .legend { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 8px; }
+    .legend-item { display: inline-flex; align-items: center; gap: 6px; border: 1px solid #2a3a66; border-radius: 999px; padding: 4px 10px; font-size: 12px; color: #c6d4f7; }
     .note { margin-top: 16px; color: #93a4d1; font-size: 13px; }
   </style>
 </head>
 <body>
-  <main class="container"> 
-    <section class="header"> 
+  <main class="container">
+    <section class="header">
       <h1>Planejador Semanal — Exportação visual</h1>
       <p class="subtitle">Gerado em: ${new Date(payload.exportedAt).toLocaleString('pt-BR')} • Total de tarefas: ${tasks.length}</p>
     </section>
 
     <section>
-      <h2>Visão semanal (como no site)</h2>
-      <div class="week-grid">${weekColumns}</div>
+      <h2 style="margin: 0 0 8px;">Visão semanal (como no site)</h2>
+      <div class="week-toolbar">
+        <div class="week-nav">
+          <button class="btn" id="prev-week">Anterior</button>
+          <button class="btn" id="next-week">Próximo</button>
+        </div>
+        <span class="week-title" id="week-title"></span>
+      </div>
+      <div class="week-grid" id="week-grid"></div>
     </section>
 
     <section class="month-wrap">
-      <h2>Visão mensal (${monthNow.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })})</h2>
-      <div class="calendar-head">${dayNames.map((d) => `<span>${d}</span>`).join('')}</div>
-      <div class="calendar-grid">${calendarCells.join('')}</div>
+      <h2 class="month-title" id="month-title"></h2>
+      <div class="calendar-head" id="calendar-head"></div>
+      <div class="calendar-grid" id="calendar-grid"></div>
+      <div class="legend" id="month-legend"></div>
     </section>
 
     <p class="note">Arquivo somente para visualização. Para editar, importe este HTML no sistema.</p>
   </main>
+
   <script id="${EXPORT_SCRIPT_ID}" type="application/timeplanner-export">${payloadBase64}</script>
+  <script>
+    const dayNames = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+
+    function dateKey(date) {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, '0');
+      const d = String(date.getDate()).padStart(2, '0');
+      return `\${y}-\${m}-\${d}`;
+    }
+
+    function startOfWeek(date) {
+      const d = new Date(date);
+      d.setHours(0, 0, 0, 0);
+      d.setDate(d.getDate() - d.getDay());
+      return d;
+    }
+
+    const raw = document.getElementById('${EXPORT_SCRIPT_ID}').textContent.trim();
+    const payload = JSON.parse(decodeURIComponent(escape(atob(raw))));
+    const tasks = (payload.tasks || []).map((task) => ({ ...task, startDate: new Date(task.start), endDate: new Date(task.end) }));
+
+    const tasksByDate = new Map();
+    tasks.forEach((task) => {
+      const key = dateKey(task.startDate);
+      if (!tasksByDate.has(key)) tasksByDate.set(key, []);
+      tasksByDate.get(key).push(task);
+    });
+
+    tasksByDate.forEach((value) => value.sort((a, b) => a.startDate - b.startDate));
+
+    let currentWeek = startOfWeek(new Date(payload.exportedAt || new Date()));
+
+    function renderWeek() {
+      const grid = document.getElementById('week-grid');
+      const weekTitle = document.getElementById('week-title');
+      const weekEnd = new Date(currentWeek);
+      weekEnd.setDate(currentWeek.getDate() + 6);
+
+      weekTitle.textContent = `\${currentWeek.toLocaleDateString('pt-BR')} - \${weekEnd.toLocaleDateString('pt-BR')}`;
+
+      let html = '';
+      for (let i = 0; i < 7; i += 1) {
+        const day = new Date(currentWeek);
+        day.setDate(currentWeek.getDate() + i);
+        const key = dateKey(day);
+        const dayTasks = tasksByDate.get(key) || [];
+
+        const cards = dayTasks.length
+          ? dayTasks.map((task) => `
+            <li class="task-item" style="border-left-color:\${task.color}">
+              <strong>\${task.title}</strong>
+              <span>\${task.startDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} - \${task.endDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+              <small>\${task.category}</small>
+            </li>`).join('')
+          : '<li class="empty">Sem tarefas</li>';
+
+        html += `
+          <article class="day-column">
+            <h3>\${dayNames[day.getDay()]}, \${day.toLocaleDateString('pt-BR')}</h3>
+            <ul>\${cards}</ul>
+          </article>`;
+      }
+
+      grid.innerHTML = html;
+    }
+
+    function renderMonth() {
+      const monthRef = new Date(currentWeek);
+      const monthStart = new Date(monthRef.getFullYear(), monthRef.getMonth(), 1);
+      const monthEnd = new Date(monthRef.getFullYear(), monthRef.getMonth() + 1, 0);
+
+      document.getElementById('month-title').textContent = `Visão mensal (\${monthRef.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })})`;
+      document.getElementById('calendar-head').innerHTML = dayNames.map((d) => `<span>\${d}</span>`).join('');
+
+      const cells = [];
+      for (let i = 0; i < monthStart.getDay(); i += 1) {
+        cells.push('<div class="calendar-cell muted"></div>');
+      }
+
+      const monthLegendMap = new Map();
+
+      for (let day = 1; day <= monthEnd.getDate(); day += 1) {
+        const current = new Date(monthRef.getFullYear(), monthRef.getMonth(), day);
+        const key = dateKey(current);
+        const dayTasks = tasksByDate.get(key) || [];
+
+        const bullets = dayTasks.slice(0, 4).map((task) => {
+          if (!monthLegendMap.has(task.category)) monthLegendMap.set(task.category, task.color);
+          return `<span class="bullet" style="background:\${task.color}" title="\${task.title}"></span>`;
+        }).join('');
+
+        cells.push(`
+          <div class="calendar-cell">
+            <div class="calendar-top">
+              <strong>\${day}</strong>
+              <div class="bullets">\${bullets}</div>
+            </div>
+          </div>`);
+      }
+
+      document.getElementById('calendar-grid').innerHTML = cells.join('');
+
+      const legend = Array.from(monthLegendMap.entries())
+        .sort((a, b) => a[0].localeCompare(b[0], 'pt-BR'))
+        .map(([category, color]) => `<span class="legend-item"><span class="bullet" style="background:\${color}"></span>\${category}</span>`)
+        .join('');
+
+      document.getElementById('month-legend').innerHTML = legend || '<span class="empty">Sem categorias neste mês.</span>';
+    }
+
+    function renderAll() {
+      renderWeek();
+      renderMonth();
+    }
+
+    document.getElementById('prev-week').addEventListener('click', () => {
+      currentWeek.setDate(currentWeek.getDate() - 7);
+      currentWeek = startOfWeek(currentWeek);
+      renderAll();
+    });
+
+    document.getElementById('next-week').addEventListener('click', () => {
+      currentWeek.setDate(currentWeek.getDate() + 7);
+      currentWeek = startOfWeek(currentWeek);
+      renderAll();
+    });
+
+    renderAll();
+  </script>
 </body>
 </html>`;
 
@@ -321,7 +407,7 @@ export default function PlannerPage() {
 
     event.target.value = '';
   };
-
+  
   return (
     <main className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-6">
       <div className="flex flex-wrap gap-2">
