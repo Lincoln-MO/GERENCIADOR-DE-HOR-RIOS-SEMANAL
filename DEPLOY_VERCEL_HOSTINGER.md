@@ -29,6 +29,13 @@ Health check após deploy:
 Health check após deploy:
 - `https://SEU_DOMINIO/api/health`
 
-## 4) Observações
-- `next.config.ts` usa `output: 'standalone'` para facilitar deploy em host Node.
-- Se o ambiente corporativo bloquear `npm install`, usar rede sem proxy/bloqueio para build (Vercel normalmente resolve isso automaticamente no CI deles).
+## 4) Correções/ajustes importantes
+- O `README.md` foi ajustado para conter instruções reais de setup/deploy (antes estava com conteúdo de código TSX).
+- O script `hostinger:start` depende da build em modo standalone já configurada em `next.config.ts`.
+- Em ambientes com proxy corporativo bloqueando o npm, use `bash scripts/install-no-proxy.sh`.
+
+## 5) Checklist rápido
+- [ ] Variáveis Supabase configuradas no provedor
+- [ ] Build executada sem erros
+- [ ] Start command apontando para `npm run hostinger:start` (Hostinger)
+- [ ] Endpoint `/api/health` respondendo com status OK

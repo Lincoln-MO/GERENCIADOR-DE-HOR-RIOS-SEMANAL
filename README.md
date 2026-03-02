@@ -1,20 +1,45 @@
-import { AnalyticsCards } from '@/mvc/views/dashboard/analytics-cards.view';
-import { TaskEvent } from '@/mvc/models/task.model';
+# Gerenciador de Horários Semanal
 
-const demoTasks: TaskEvent[] = [
-  { id: '1', scheduleId: 'default', title: 'Estudo', category: 'Concurso', color: '#4f46e5', start: '2026-01-05T08:00:00', end: '2026-01-05T11:00:00', dayOfWeek: 1, isRecurring: true, recurrencePattern: 'weekly' },
-  { id: '2', scheduleId: 'default', title: 'Treino', category: 'Saúde', color: '#059669', start: '2026-01-06T18:00:00', end: '2026-01-06T19:00:00', dayOfWeek: 2, isRecurring: true, recurrencePattern: 'weekly' }
-];
+Aplicação em **Next.js 15** para organizar tarefas recorrentes de uma agenda semanal, com integração ao Supabase e exportações.
 
-export default function DashboardPage() {
-  return (
-    <main className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-6">
-      <h1 className="text-2xl font-bold">Dashboard Inteligente</h1>
-      <AnalyticsCards tasks={demoTasks} />
-      <section className="card">
-        <h2 className="font-semibold">Comparação de semanas</h2>
-        <p className="text-sm text-slate-600 dark:text-slate-300">Histórico e evolução de produtividade (estrutura pronta para Realtime + charts).</p>
-      </section>
-    </main>
-  );
-}
+## Requisitos
+
+- Node.js 20+
+- npm 10+
+
+## Configuração local
+
+1. Instale dependências:
+   - `npm install`
+   - Se seu ambiente tiver proxy corporativo bloqueando o npm registry, use: `bash scripts/install-no-proxy.sh`
+2. Configure variáveis de ambiente em `.env.local`:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+3. Rode em desenvolvimento:
+   - `npm run dev`
+
+## Build e execução em produção
+
+- Build padrão: `npm run build`
+- Start padrão: `npm run start`
+
+## Deploy no Vercel
+
+- O repositório já possui `vercel.json` configurado para usar `npm run vercel-build`.
+- Configure as variáveis de ambiente do Supabase no painel da Vercel.
+
+## Deploy na Hostinger (Node.js)
+
+- Build: `npm run hostinger:build`
+- Start: `npm run hostinger:start`
+- Garanta `NODE_ENV=production` e as variáveis de ambiente do Supabase.
+
+> Observação: este projeto usa `output: 'standalone'` no Next.js para facilitar execução em hospedagem Node.
+
+## Verificação de saúde
+
+Após deploy em qualquer provedor, valide:
+
+- `https://SEU_DOMINIO/api/health`
+
+Para instruções detalhadas, consulte `DEPLOY_VERCEL_HOSTINGER.md`.
