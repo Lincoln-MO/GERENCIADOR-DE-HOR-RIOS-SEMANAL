@@ -10,8 +10,7 @@ import { addTaskWithConflictCheck, duplicateWeek, updateEventTime } from '@/mvc/
 
 const STORAGE_KEY = 'timeplanner:tasks';
 const EXPORT_VERSION = '1.0';
-const EXPORT_MARKER_START = '<!-- TIMEPLANNER_EXPORT_START -->';
-const EXPORT_MARKER_END = '<!-- TIMEPLANNER_EXPORT_END -->';
+const EXPORT_SCRIPT_ID = 'timeplanner-export-data';
 
 const initialTasks: TaskEvent[] = [
   {
@@ -275,7 +274,7 @@ export default function PlannerPage() {
 
     <p class="note">Arquivo somente para visualização. Para editar, importe este HTML no sistema.</p>
   </main>
-  ${EXPORT_MARKER_START}${payloadBase64}${EXPORT_MARKER_END}
+  <script id="${EXPORT_SCRIPT_ID}" type="application/timeplanner-export">${payloadBase64}</script>
 </body>
 </html>`;
 
@@ -293,17 +292,18 @@ export default function PlannerPage() {
     }
 
     const text = await file.text();
-    const startIndex = text.indexOf(EXPORT_MARKER_START);
-    const endIndex = text.indexOf(EXPORT_MARKER_END);
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(text, 'text/html');
+    const payloadScript = doc.getElementById(EXPORT_SCRIPT_ID);
 
-    if (startIndex === -1 || endIndex === -1 || endIndex <= startIndex) {
+    if (!payloadScript) {
       window.alert('Arquivo não reconhecido. Use apenas arquivos exportados por este sistema.');
       event.target.value = '';
       return;
     }
 
     try {
-      const base64 = text.slice(startIndex + EXPORT_MARKER_START.length, endIndex).trim();
+      const base64 = (payloadScript.textContent || '').trim();
       const json = decodeURIComponent(escape(atob(base64)));
       const payload = JSON.parse(json) as unknown;
 

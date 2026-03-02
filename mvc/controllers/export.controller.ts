@@ -7,38 +7,53 @@ import { Document, Packer, Paragraph } from 'docx';
 import { TaskEvent } from '@/mvc/models/task.model';
 
 async function captureElement(element: HTMLElement) {
+  const rect = element.getBoundingClientRect();
+  const width = Math.ceil(Math.max(element.scrollWidth, rect.width));
+  const height = Math.ceil(Math.max(element.scrollHeight, rect.height));
+
   return html2canvas(element, {
     scale: 2,
     useCORS: true,
     backgroundColor: '#0b132b',
-    windowWidth: document.documentElement.scrollWidth,
-    windowHeight: document.documentElement.scrollHeight
+    width,
+    height,
+    windowWidth: width,
+    windowHeight: height,
+    scrollX: 0,
+    scrollY: -window.scrollY
   });
 }
+
 
 export async function exportAsPdf(element: HTMLElement) {
   try {
     const canvas = await captureElement(element);
     const imgData = canvas.toDataURL('image/png');
 
-    const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    const isLandscape = canvas.width >= canvas.height;
+    const pdf = new jsPDF({ orientation: isLandscape ? 'landscape' : 'portrait', unit: 'mm', format: 'a4' });
+
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
+    const margin = 5;
 
-    const imgWidth = pageWidth - 10;
+    const usableWidth = pageWidth - margin * 2;
+    const usableHeight = pageHeight - margin * 2;
+
+    const imgWidth = usableWidth;
     const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
-    let position = 5;
     let heightLeft = imgHeight;
+    let position = margin;
 
-    pdf.addImage(imgData, 'PNG', 5, position, imgWidth, imgHeight);
-    heightLeft -= pageHeight;
+    pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight);
+    heightLeft -= usableHeight;
 
     while (heightLeft > 0) {
-      position = heightLeft - imgHeight + 5;
+      position = margin - (imgHeight - heightLeft);
       pdf.addPage();
-      pdf.addImage(imgData, 'PNG', 5, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
+      pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight);
+      heightLeft -= usableHeight;
     }
 
     pdf.save('planejador-semanal.pdf');
