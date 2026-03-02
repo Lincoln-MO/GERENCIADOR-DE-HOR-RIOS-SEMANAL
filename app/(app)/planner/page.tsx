@@ -156,7 +156,7 @@ export default function PlannerPage() {
 
     if (!allowOverlap) return;
 
-    setTasks((prev) => newTasks.reduce((acc, task) => addTaskWithConflictCheck(acc, task, allowOverlap), prev));
+     setTasks((prev) => newTasks.reduce((acc, task) => addTaskWithConflictCheck(acc, task, allowOverlap), prev));
   };
 
   const removeTask = (taskId: string) => {
@@ -291,7 +291,7 @@ export default function PlannerPage() {
       const dayKey = dateKey(day);
       const events = tasks
         .filter((task) => {
-          if (task.recurrencePattern === 'weekly' || task.isRecurring) {
+          if (task.recurrencePattern === 'weekly') {
             return Number(task.dayOfWeek) === day.getDay();
           }
           return dateKey(task.startDate) === dayKey;
