@@ -156,265 +156,219 @@ export default function PlannerPage() {
   };
 
   const handleExportHtml = () => {
-    const payload: ExportPayload = {
-      app: 'timeplanner-pro',
-      version: EXPORT_VERSION,
-      exportedAt: new Date().toISOString(),
-      tasks
-    };
+  const EXPORT_SCRIPT_ID = 'weekly-data';
 
-    const payloadBase64 = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
-
-    const html = `<!doctype html>
+  const html = String.raw`<!doctype html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Planejamento exportado</title>
-  <style>
-    body { font-family: Inter, Arial, sans-serif; margin: 0; background: #0b132b; color: #e2e8f0; }
-    .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
-    .header { background: #111c44; border: 1px solid #26335f; border-radius: 14px; padding: 16px; margin-bottom: 18px; }
-    .subtitle { color: #93a4d1; margin-top: 8px; font-size: 14px; }
-    .week-toolbar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; margin: 10px 0; }
-    .week-nav { display: flex; gap: 8px; }
-    .btn { background: #0f1738; border: 1px solid #2a3a66; color: #e2e8f0; border-radius: 8px; padding: 8px 12px; cursor: pointer; }
-    .week-title { font-weight: 600; color: #c7d3f6; }
-    .week-grid { display: grid; grid-template-columns: repeat(7, minmax(180px, 1fr)); gap: 10px; overflow-x: auto; }
-    .day-column { background: #111c44; border: 1px solid #26335f; border-radius: 12px; padding: 10px; min-height: 220px; }
-    .day-column h3 { font-size: 14px; margin: 0 0 8px; }
-    .day-column ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-    .task-item { background: #0f1738; border: 1px solid #1f2a52; border-left-width: 4px; border-radius: 8px; padding: 8px; display: flex; flex-direction: column; gap: 3px; }
-    .task-item strong { font-size: 13px; }
-    .task-item span, .task-item small { font-size: 12px; color: #b8c4e8; }
-    .empty { color: #8ea0cd; font-size: 12px; }
-    .month-wrap { margin-top: 20px; background: #111c44; border: 1px solid #26335f; border-radius: 12px; padding: 12px; }
-    .month-title { margin: 0 0 8px; }
-    .calendar-head { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-bottom: 8px; color: #9cb0df; font-size: 12px; }
-    .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
-    .calendar-cell { min-height: 74px; background: #0f1738; border: 1px solid #1f2a52; border-radius: 8px; padding: 8px; }
-    .calendar-cell.muted { opacity: 0.35; }
-    .calendar-top { display: flex; justify-content: space-between; align-items: center; }
-    .bullets { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
-    .bullet { width: 8px; height: 8px; border-radius: 999px; display: inline-block; }
-    .legend { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 8px; }
-    .legend-item { display: inline-flex; align-items: center; gap: 6px; border: 1px solid #2a3a66; border-radius: 999px; padding: 4px 10px; font-size: 12px; color: #c6d4f7; }
-    .note { margin-top: 16px; color: #93a4d1; font-size: 13px; }
-  </style>
+<meta charset="utf-8" />
+<title>Planejamento Semanal</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+body {
+  margin:0;
+  font-family:Arial, sans-serif;
+  background:#f3f4f6;
+}
+.header {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:16px;
+  background:#111827;
+  color:white;
+}
+.header button {
+  margin-left:8px;
+  padding:6px 10px;
+  border:none;
+  border-radius:6px;
+  cursor:pointer;
+}
+.week-grid {
+  display:grid;
+  grid-template-columns: repeat(7, 1fr);
+  border-top:1px solid #ccc;
+}
+.day-column {
+  border-left:1px solid #ccc;
+  background:white;
+  min-height:600px;
+  position:relative;
+}
+.day-header {
+  text-align:center;
+  padding:8px;
+  font-weight:bold;
+  border-bottom:1px solid #ddd;
+  background:#f9fafb;
+}
+.task {
+  position:absolute;
+  left:4px;
+  right:4px;
+  border-radius:6px;
+  padding:4px;
+  font-size:12px;
+  color:white;
+}
+.hour-line {
+  position:absolute;
+  left:0;
+  right:0;
+  height:1px;
+  background:#e5e7eb;
+}
+</style>
 </head>
 <body>
-  <main class="container">
-    <section class="header">
-      <h1>Planejador Semanal — Exportação visual</h1>
-      <p class="subtitle">Gerado em: ${new Date(payload.exportedAt).toLocaleString('pt-BR')} • Total de tarefas: ${tasks.length}</p>
-    </section>
 
-    <section>
-      <h2 style="margin: 0 0 8px;">Visão semanal (como no site)</h2>
-      <div class="week-toolbar">
-        <div class="week-nav">
-          <button class="btn" id="prev-week">Anterior</button>
-          <button class="btn" id="next-week">Próximo</button>
-        </div>
-        <span class="week-title" id="week-title"></span>
-      </div>
-      <div class="week-grid" id="week-grid"></div>
-    </section>
+<div class="header">
+  <div id="week-title"></div>
+  <div>
+    <button onclick="prevWeek()">◀</button>
+    <button onclick="goToday()">Hoje</button>
+    <button onclick="nextWeek()">▶</button>
+  </div>
+</div>
 
-    <section class="month-wrap">
-      <h2 class="month-title" id="month-title"></h2>
-      <div class="calendar-head" id="calendar-head"></div>
-      <div class="calendar-grid" id="calendar-grid"></div>
-      <div class="legend" id="month-legend"></div>
-    </section>
+<div id="week-grid" class="week-grid"></div>
 
-    <p class="note">Arquivo somente para visualização. Para editar, importe este HTML no sistema.</p>
-  </main>
+<script id="${EXPORT_SCRIPT_ID}" type="application/json">
+${JSON.stringify(tasks)}
+</script>
 
-  <script id="${EXPORT_SCRIPT_ID}" type="application/timeplanner-export">${payloadBase64}</script>
-  <script>
-  const dayNames = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+<script>
+(function(){
 
-  function dateKey(date) {
-    const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, '0');
-    const d = String(date.getDate()).padStart(2, '0');
-    return y + '-' + m + '-' + d;
-  }
+const raw = document.getElementById('${EXPORT_SCRIPT_ID}').textContent.trim();
+const tasks = JSON.parse(raw);
 
-  function startOfWeek(date) {
-    const d = new Date(date);
-    d.setHours(0, 0, 0, 0);
-    d.setDate(d.getDate() - d.getDay());
-    return d;
-  }
+let currentWeek = getStartOfWeek(new Date());
 
-  const raw = document.getElementById('timeplanner-export-data').textContent.trim();
-  const payload = JSON.parse(decodeURIComponent(escape(atob(raw))));
-  const tasks = (payload.tasks || []).map(function (task) {
-    return {
-      id: task.id,
-      title: task.title,
-      category: task.category,
-      color: task.color,
-      startDate: new Date(task.start),
-      endDate: new Date(task.end)
-    };
-  });
+function getStartOfWeek(date){
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = d.getDate() - day;
+  return new Date(d.setDate(diff));
+}
 
-  const tasksByDate = new Map();
+function formatDate(date){
+  const y = date.getFullYear();
+  const m = String(date.getMonth()+1).padStart(2,'0');
+  const d = String(date.getDate()).padStart(2,'0');
+  return y + '-' + m + '-' + d;
+}
 
-  tasks.forEach(function (task) {
-    const key = dateKey(task.startDate);
-    if (!tasksByDate.has(key)) tasksByDate.set(key, []);
-    tasksByDate.get(key).push(task);
-  });
+function render(){
 
-  tasksByDate.forEach(function (value) {
-    value.sort(function (a, b) {
-      return a.startDate - b.startDate;
-    });
-  });
+  const grid = document.getElementById('week-grid');
+  const weekTitle = document.getElementById('week-title');
 
-  let currentWeek = startOfWeek(new Date(payload.exportedAt || new Date()));
+  const weekEnd = new Date(currentWeek);
+  weekEnd.setDate(currentWeek.getDate()+6);
 
-  function renderWeek() {
-    const grid = document.getElementById('week-grid');
-    const weekTitle = document.getElementById('week-title');
-    const weekEnd = new Date(currentWeek);
-    weekEnd.setDate(currentWeek.getDate() + 6);
+  weekTitle.textContent =
+    currentWeek.toLocaleDateString('pt-BR') +
+    ' - ' +
+    weekEnd.toLocaleDateString('pt-BR');
 
-    weekTitle.textContent =
-      currentWeek.toLocaleDateString('pt-BR') +
-      ' - ' +
-      weekEnd.toLocaleDateString('pt-BR');
+  grid.innerHTML = '';
 
-    let html = '';
+  const dayNames = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
 
-    for (let i = 0; i < 7; i += 1) {
-      const day = new Date(currentWeek);
-      day.setDate(currentWeek.getDate() + i);
+  for(let i=0;i<7;i++){
 
-      const key = dateKey(day);
-      const dayTasks = tasksByDate.get(key) || [];
+    const dayDate = new Date(currentWeek);
+    dayDate.setDate(currentWeek.getDate()+i);
 
-      let cards = '';
+    const column = document.createElement('div');
+    column.className = 'day-column';
 
-      if (dayTasks.length > 0) {
-        dayTasks.forEach(function (task) {
-          cards +=
-            '<li class="task-item" style="border-left-color:' + task.color + '">' +
-            '<strong>' + task.title + '</strong>' +
-            '<span>' +
-            task.startDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) +
-            ' - ' +
-            task.endDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) +
-            '</span>' +
-            '<small>' + task.category + '</small>' +
-            '</li>';
-        });
-      } else {
-        cards = '<li class="empty">Sem tarefas</li>';
-      }
+    const header = document.createElement('div');
+    header.className = 'day-header';
+    header.textContent =
+      dayNames[dayDate.getDay()] +
+      ' ' +
+      dayDate.toLocaleDateString('pt-BR');
 
-      html +=
-        '<article class="day-column">' +
-        '<h3>' +
-        dayNames[day.getDay()] + ', ' +
-        day.toLocaleDateString('pt-BR') +
-        '</h3>' +
-        '<ul>' + cards + '</ul>' +
-        '</article>';
+    column.appendChild(header);
+
+    for(let h=0;h<24;h++){
+      const line = document.createElement('div');
+      line.className = 'hour-line';
+      line.style.top = (h*50) + 'px';
+      column.appendChild(line);
     }
 
-    grid.innerHTML = html;
-  }
+    const dayKey = formatDate(dayDate);
 
-  function renderMonth() {
-    const monthRef = new Date(currentWeek);
-    const monthStart = new Date(monthRef.getFullYear(), monthRef.getMonth(), 1);
-    const monthEnd = new Date(monthRef.getFullYear(), monthRef.getMonth() + 1, 0);
-
-    document.getElementById('month-title').textContent =
-      'Visão mensal (' +
-      monthRef.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }) +
-      ')';
-
-    document.getElementById('calendar-head').innerHTML =
-      dayNames.map(function (d) { return '<span>' + d + '</span>'; }).join('');
-
-    const cells = [];
-    const monthLegendMap = new Map();
-
-    for (let i = 0; i < monthStart.getDay(); i += 1) {
-      cells.push('<div class="calendar-cell muted"></div>');
-    }
-
-    for (let day = 1; day <= monthEnd.getDate(); day += 1) {
-      const current = new Date(monthRef.getFullYear(), monthRef.getMonth(), day);
-      const key = dateKey(current);
-      const dayTasks = tasksByDate.get(key) || [];
-
-      dayTasks.forEach(function (task) {
-        if (!monthLegendMap.has(task.category)) {
-          monthLegendMap.set(task.category, task.color);
-        }
+    const dayTasks = tasks
+      .filter(function(t){ return t.date === dayKey; })
+      .sort(function(a,b){
+        return a.start.localeCompare(b.start);
       });
 
-      const bullets = dayTasks.slice(0, 4).map(function (task) {
-        return '<span class="bullet" style="background:' + task.color + '" title="' + task.title + '"></span>';
-      }).join('');
+    dayTasks.forEach(function(task){
 
-      cells.push(
-        '<div class="calendar-cell">' +
-        '<div class="calendar-top">' +
-        '<strong>' + day + '</strong>' +
-        '<div class="bullets">' + bullets + '</div>' +
-        '</div>' +
-        '</div>'
-      );
-    }
+      const [sh,sm] = task.start.split(':').map(Number);
+      const [eh,em] = task.end.split(':').map(Number);
 
-    document.getElementById('calendar-grid').innerHTML = cells.join('');
+      const startMinutes = sh*60 + sm;
+      const endMinutes = eh*60 + em;
 
-    const legend = Array.from(monthLegendMap.entries())
-      .sort(function (a, b) { return a[0].localeCompare(b[0], 'pt-BR'); })
-      .map(function (entry) {
-        return '<span class="legend-item">' +
-          '<span class="bullet" style="background:' + entry[1] + '"></span>' +
-          entry[0] +
-          '</span>';
-      })
-      .join('');
+      const topPx = (startMinutes/60)*50;
+      const heightPx = ((endMinutes-startMinutes)/60)*50;
 
-    document.getElementById('month-legend').innerHTML =
-      legend || '<span class="empty">Sem categorias neste mês.</span>';
+      const div = document.createElement('div');
+      div.className = 'task';
+      div.style.top = topPx + 'px';
+      div.style.height = heightPx + 'px';
+      div.style.background = task.color;
+
+      div.textContent = task.title + ' (' + task.start + '-' + task.end + ')';
+
+      column.appendChild(div);
+
+    });
+
+    grid.appendChild(column);
   }
+}
 
-  function renderAll() {
-    renderWeek();
-    renderMonth();
-  }
+window.prevWeek = function(){
+  currentWeek.setDate(currentWeek.getDate()-7);
+  render();
+}
 
-  document.getElementById('prev-week').addEventListener('click', function () {
-    currentWeek.setDate(currentWeek.getDate() - 7);
-    currentWeek = startOfWeek(currentWeek);
-    renderAll();
-  });
+window.nextWeek = function(){
+  currentWeek.setDate(currentWeek.getDate()+7);
+  render();
+}
 
-  document.getElementById('next-week').addEventListener('click', function () {
-    currentWeek.setDate(currentWeek.getDate() + 7);
-    currentWeek = startOfWeek(currentWeek);
-    renderAll();
-  });
+window.goToday = function(){
+  currentWeek = getStartOfWeek(new Date());
+  render();
+}
 
-  renderAll();
+render();
+
+})();
 </script>
+
 </body>
 </html>`;
 
-    downloadFile(`planejamento-visual-${new Date().toISOString().slice(0, 10)}.html`, html, 'text/html;charset=utf-8');
-  };
+  const blob = new Blob([html], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'planejamento-semanal.html';
+  a.click();
+
+  URL.revokeObjectURL(url);
+};
 
   const handleImportFile = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
