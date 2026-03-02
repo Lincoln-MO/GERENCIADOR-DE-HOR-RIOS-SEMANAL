@@ -18,9 +18,10 @@ interface PlannerCalendarProps {
   jumpToDate?: string;
   onEventChange: (event: { id: string; start: string; end: string }) => void;
   onEventDelete: (id: string) => void;
+  onWeekReferenceChange?: (dateIso: string) => void;
 }
 
-export function PlannerCalendar({ events, view, compact, slotMinTime, slotMaxTime, jumpToDate, onEventChange, onEventDelete }: PlannerCalendarProps) {
+export function PlannerCalendar({ events, view, compact, slotMinTime, slotMaxTime, jumpToDate, onEventChange, onEventDelete, onWeekReferenceChange }: PlannerCalendarProps) {
   const calendarRef = useRef<FullCalendar | null>(null);
   const [periodLabel, setPeriodLabel] = useState('');
 
@@ -60,6 +61,7 @@ export function PlannerCalendar({ events, view, compact, slotMinTime, slotMaxTim
 
   const handleDatesSet = (datesInfo: DatesSetArg) => {
     setPeriodLabel(datesInfo.view.title);
+    onWeekReferenceChange?.(datesInfo.start.toISOString());
   };
 
   return (

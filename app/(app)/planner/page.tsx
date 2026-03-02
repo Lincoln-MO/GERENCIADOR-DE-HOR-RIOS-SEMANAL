@@ -6,7 +6,7 @@ import { TaskForm } from '@/mvc/views/calendar/task-form.view';
 import { CalendarView, TaskEvent, hasConflict } from '@/mvc/models/task.model';
 
 import { exportAsDocx, exportAsExcel, exportAsPdf, exportAsPng } from '@/mvc/controllers/export.controller';
-import { addTaskWithConflictCheck, duplicateWeek, updateEventTime } from '@/mvc/controllers/planner.controller';
+import { addTaskWithConflictCheck, duplicateWeekByDateRange, updateEventTime } from '@/mvc/controllers/planner.controller';
 
 const STORAGE_KEY = 'timeplanner:tasks';
 const EXPORT_VERSION = '1.0';
@@ -99,12 +99,28 @@ function fromBase64Unicode(value: string) {
   return new TextDecoder().decode(bytes);
 }
 
+
+function startOfWeekLocal(dateInput: string | Date) {
+  const next = new Date(dateInput);
+  next.setHours(0, 0, 0, 0);
+  next.setDate(next.getDate() - next.getDay());
+  return next;
+}
+
+function formatDateInput(date: Date) {
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+}
+
 export default function PlannerPage() {
   const [tasks, setTasks] = useState<TaskEvent[]>(initialTasks);
   const [view, setView] = useState<CalendarView>('timeGridWeek');
   const [compact, setCompact] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('Todas');
   const [jumpToDate, setJumpToDate] = useState('');
+  const [weekReferenceDate, setWeekReferenceDate] = useState(formatDateInput(new Date()));
+  const [duplicateRangeOpen, setDuplicateRangeOpen] = useState(false);
+  const [duplicateStartDate, setDuplicateStartDate] = useState(formatDateInput(new Date()));
+  const [duplicateEndDate, setDuplicateEndDate] = useState(formatDateInput(new Date()));
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -132,7 +148,7 @@ export default function PlannerPage() {
     return ['Todas', ...Array.from(new Set([...defaultCategories, ...dynamicCategories]))];
   }, [tasks]);
 
-  const filteredTasks = useMemo(
+    const filteredTasks = useMemo(
     () => selectedCategory === 'Todas' ? tasks : tasks.filter((task) => task.category === selectedCategory),
     [tasks, selectedCategory]
   );
@@ -156,7 +172,7 @@ export default function PlannerPage() {
 
     if (!allowOverlap) return;
 
-     setTasks((prev) => newTasks.reduce((acc, task) => addTaskWithConflictCheck(acc, task, allowOverlap), prev));
+    setTasks((prev) => newTasks.reduce((acc, task) => addTaskWithConflictCheck(acc, task, allowOverlap), prev));
   };
 
   const removeTask = (taskId: string) => {
@@ -168,6 +184,34 @@ export default function PlannerPage() {
     if (confirmed) {
       setTasks([]);
     }
+  };
+
+  const openDuplicateRangeMenu = () => {
+    const weekStart = startOfWeekLocal(weekReferenceDate);
+    const defaultDate = formatDateInput(weekStart);
+    setDuplicateStartDate(defaultDate);
+    setDuplicateEndDate(defaultDate);
+    setDuplicateRangeOpen(true);
+  };
+
+  const handleDuplicateByRange = () => {
+    const start = startOfWeekLocal(duplicateStartDate);
+    const end = startOfWeekLocal(duplicateEndDate);
+
+    if (start > end) {
+      window.alert('A data inicial precisa ser menor ou igual à data final.');
+      return;
+    }
+
+    const duplicated = duplicateWeekByDateRange(tasks, weekReferenceDate, duplicateStartDate, duplicateEndDate);
+    if (duplicated.length === 0) {
+      window.alert('Nenhuma tarefa encontrada na semana atual para duplicar nesse intervalo.');
+      return;
+    }
+
+    setTasks((prev) => [...prev, ...duplicated]);
+    setDuplicateRangeOpen(false);
+    window.alert(`${duplicated.length} tarefa(s) duplicada(s) com sucesso.`);
   };
 
   const handleExportHtml = () => {
@@ -218,7 +262,7 @@ export default function PlannerPage() {
     .time-grid { min-width: 980px; display: grid; grid-template-columns: 64px repeat(7, 1fr); background:#0f1738; border:1px solid #26335f; border-radius: 10px; }
     .tg-head { background:#0f1738; border-bottom:1px solid #2a3a66; padding:6px; font-size:12px; text-align:center; }
     .tg-time { border-top: 1px dashed #2a3a66; padding: 2px 6px; font-size: 11px; color:#9fb2df; height: 20px; box-sizing: border-box; }
-    .tg-col { position: relative; border-left: 1px solid #2a3a66; min-height: 1320px; background: repeating-linear-gradient(to bottom, transparent 0, transparent 19px, rgba(159,178,223,.25) 20px); }
+    .tg-col { position: relative; border-left: 1px solid #2a3a66; min-height: 660px; background: repeating-linear-gradient(to bottom, transparent 0, transparent 19px, rgba(159,178,223,.25) 20px); }
     .tg-event { position: absolute; left: 2px; right: 2px; border-radius: 6px; padding: 4px; font-size: 11px; overflow: hidden; border: 1px solid rgba(255,255,255,.25); color: #fff; }
     .tg-event strong { display:block; font-size: 11px; margin-bottom:2px; }
     .note { margin-top: 16px; color: #93a4d1; font-size: 13px; }
@@ -352,6 +396,7 @@ export default function PlannerPage() {
       const container = document.getElementById('time-grid');
       const startQuarter = 6 * 4;
       const endQuarter = 22 * 4;
+      const pxPerQuarter = 10;
 
       let head = '<div class="tg-head"></div>';
       for (let i = 0; i < 7; i += 1) {
@@ -378,8 +423,8 @@ export default function PlannerPage() {
         dayTasks.forEach((task) => {
           const sQ = Math.max(startQuarter, toQuarterIndex(task.startDate));
           const eQ = Math.min(endQuarter + 4, toQuarterIndex(task.endDate));
-          const topPx = (sQ - startQuarter) * 5;
-          const heightPx = Math.max(20, (eQ - sQ) * 5);
+          const topPx = (sQ - startQuarter) * pxPerQuarter;
+          const heightPx = Math.max(20, (eQ - sQ) * pxPerQuarter);
           events += \`<div class="tg-event" style="top:\${topPx}px;height:\${heightPx}px;background:\${task.color}"><strong>\${task.title}</strong><span>\${task.startDate.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})} - \${task.endDate.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</span></div>\`;
         });
 
@@ -412,7 +457,7 @@ export default function PlannerPage() {
           if (!monthLegendMap.has(task.category)) monthLegendMap.set(task.category, task.color);
         });
 
-        const bullets = dayTasks.slice(0, 4).map((task) =>
+        const bullets = dayTasks.slice(0, 8).map((task) =>
           \`<span class="bullet" style="background:\${task.color}" title="\${task.title}"></span>\`
         ).join('');
 
@@ -513,7 +558,7 @@ export default function PlannerPage() {
         <button className="rounded-lg border px-3 py-2" onClick={() => setView('timeGridWeek')}>Semana</button>
         <button className="rounded-lg border px-3 py-2" onClick={() => setView('dayGridMonth')}>Mês</button>
         <button className="rounded-lg border px-3 py-2" onClick={() => setCompact((v) => !v)}>{compact ? 'Modo detalhado' : 'Modo compacto'}</button>
-        <button className="rounded-lg border px-3 py-2" onClick={() => setTasks((prev) => [...prev, ...duplicateWeek(prev)])}>Duplicar semana</button>
+        <button className="rounded-lg border px-3 py-2" onClick={openDuplicateRangeMenu}>Duplicar semana</button>
         <button className="rounded-lg border border-red-300 px-3 py-2 text-red-600" onClick={clearAllTasks}>Excluir tudo</button>
         <details className="rounded-lg border px-3 py-2 text-sm">
           <summary className="cursor-pointer">Mais opções</summary>
@@ -578,7 +623,31 @@ export default function PlannerPage() {
         jumpToDate={jumpToDate}
         onEventChange={(updated) => setTasks((prev) => updateEventTime(prev, updated))}
         onEventDelete={removeTask}
+        onWeekReferenceChange={(iso) => setWeekReferenceDate(formatDateInput(new Date(iso)))}
       />
+
+      {duplicateRangeOpen && (
+        <section className="card border-blue-200">
+          <h2 className="mb-2 text-sm font-semibold">Duplicar semana por período</h2>
+          <p className="mb-3 text-sm text-slate-600 dark:text-slate-300">
+            Semana base selecionada: <strong>{new Date(weekReferenceDate).toLocaleDateString('pt-BR')}</strong>
+          </p>
+          <div className="flex flex-wrap items-end gap-3">
+            <label className="text-sm">
+              <span className="mb-1 block text-slate-600 dark:text-slate-300">Data inicial</span>
+              <input type="date" className="rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950" value={duplicateStartDate} onChange={(e) => setDuplicateStartDate(e.target.value)} />
+            </label>
+            <label className="text-sm">
+              <span className="mb-1 block text-slate-600 dark:text-slate-300">Data final</span>
+              <input type="date" className="rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950" value={duplicateEndDate} onChange={(e) => setDuplicateEndDate(e.target.value)} />
+            </label>
+            <div className="flex gap-2">
+              <button className="rounded-lg border px-3 py-2 text-sm" onClick={handleDuplicateByRange}>Aplicar duplicação</button>
+              <button className="rounded-lg border px-3 py-2 text-sm" onClick={() => setDuplicateRangeOpen(false)}>Cancelar</button>
+            </div>
+          </div>
+        </section>
+      )}
       <section className="card md:hidden">
         <h2 className="mb-2 font-semibold">Modo lista (mobile)</h2>
         {filteredTasks.length === 0 && <p className="text-sm text-slate-600 dark:text-slate-300">Nenhuma tarefa cadastrada ainda.</p>}
