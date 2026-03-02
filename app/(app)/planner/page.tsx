@@ -233,137 +233,183 @@ export default function PlannerPage() {
 
   <script id="${EXPORT_SCRIPT_ID}" type="application/timeplanner-export">${payloadBase64}</script>
   <script>
-    const dayNames = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+  const dayNames = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
-    function dateKey(date) {
-      const y = date.getFullYear();
-      const m = String(date.getMonth() + 1).padStart(2, '0');
-      const d = String(date.getDate()).padStart(2, '0');
-      return `\${y}-\${m}-\${d}`;
-    }
+  function dateKey(date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return y + '-' + m + '-' + d;
+  }
 
-    function startOfWeek(date) {
-      const d = new Date(date);
-      d.setHours(0, 0, 0, 0);
-      d.setDate(d.getDate() - d.getDay());
-      return d;
-    }
+  function startOfWeek(date) {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() - d.getDay());
+    return d;
+  }
 
-    const raw = document.getElementById('${EXPORT_SCRIPT_ID}').textContent.trim();
-    const payload = JSON.parse(decodeURIComponent(escape(atob(raw))));
-    const tasks = (payload.tasks || []).map((task) => ({ ...task, startDate: new Date(task.start), endDate: new Date(task.end) }));
+  const raw = document.getElementById('timeplanner-export-data').textContent.trim();
+  const payload = JSON.parse(decodeURIComponent(escape(atob(raw))));
+  const tasks = (payload.tasks || []).map(function (task) {
+    return {
+      id: task.id,
+      title: task.title,
+      category: task.category,
+      color: task.color,
+      startDate: new Date(task.start),
+      endDate: new Date(task.end)
+    };
+  });
 
-    const tasksByDate = new Map();
-    tasks.forEach((task) => {
-      const key = dateKey(task.startDate);
-      if (!tasksByDate.has(key)) tasksByDate.set(key, []);
-      tasksByDate.get(key).push(task);
+  const tasksByDate = new Map();
+
+  tasks.forEach(function (task) {
+    const key = dateKey(task.startDate);
+    if (!tasksByDate.has(key)) tasksByDate.set(key, []);
+    tasksByDate.get(key).push(task);
+  });
+
+  tasksByDate.forEach(function (value) {
+    value.sort(function (a, b) {
+      return a.startDate - b.startDate;
     });
+  });
 
-    tasksByDate.forEach((value) => value.sort((a, b) => a.startDate - b.startDate));
+  let currentWeek = startOfWeek(new Date(payload.exportedAt || new Date()));
 
-    let currentWeek = startOfWeek(new Date(payload.exportedAt || new Date()));
+  function renderWeek() {
+    const grid = document.getElementById('week-grid');
+    const weekTitle = document.getElementById('week-title');
+    const weekEnd = new Date(currentWeek);
+    weekEnd.setDate(currentWeek.getDate() + 6);
 
-    function renderWeek() {
-      const grid = document.getElementById('week-grid');
-      const weekTitle = document.getElementById('week-title');
-      const weekEnd = new Date(currentWeek);
-      weekEnd.setDate(currentWeek.getDate() + 6);
+    weekTitle.textContent =
+      currentWeek.toLocaleDateString('pt-BR') +
+      ' - ' +
+      weekEnd.toLocaleDateString('pt-BR');
 
-      weekTitle.textContent = `\${currentWeek.toLocaleDateString('pt-BR')} - \${weekEnd.toLocaleDateString('pt-BR')}`;
+    let html = '';
 
-      let html = '';
-      for (let i = 0; i < 7; i += 1) {
-        const day = new Date(currentWeek);
-        day.setDate(currentWeek.getDate() + i);
-        const key = dateKey(day);
-        const dayTasks = tasksByDate.get(key) || [];
+    for (let i = 0; i < 7; i += 1) {
+      const day = new Date(currentWeek);
+      day.setDate(currentWeek.getDate() + i);
 
-        const cards = dayTasks.length
-          ? dayTasks.map((task) => `
-            <li class="task-item" style="border-left-color:\${task.color}">
-              <strong>\${task.title}</strong>
-              <span>\${task.startDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} - \${task.endDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
-              <small>\${task.category}</small>
-            </li>`).join('')
-          : '<li class="empty">Sem tarefas</li>';
+      const key = dateKey(day);
+      const dayTasks = tasksByDate.get(key) || [];
 
-        html += `
-          <article class="day-column">
-            <h3>\${dayNames[day.getDay()]}, \${day.toLocaleDateString('pt-BR')}</h3>
-            <ul>\${cards}</ul>
-          </article>`;
-      }
+      let cards = '';
 
-      grid.innerHTML = html;
-    }
-
-    function renderMonth() {
-      const monthRef = new Date(currentWeek);
-      const monthStart = new Date(monthRef.getFullYear(), monthRef.getMonth(), 1);
-      const monthEnd = new Date(monthRef.getFullYear(), monthRef.getMonth() + 1, 0);
-
-      document.getElementById('month-title').textContent = `Visão mensal (\${monthRef.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })})`;
-      document.getElementById('calendar-head').innerHTML = dayNames.map((d) => `<span>\${d}</span>`).join('');
-
-      const cells = [];
-      for (let i = 0; i < monthStart.getDay(); i += 1) {
-        cells.push('<div class="calendar-cell muted"></div>');
-      }
-
-      const monthLegendMap = new Map();
-
-      for (let day = 1; day <= monthEnd.getDate(); day += 1) {
-        const current = new Date(monthRef.getFullYear(), monthRef.getMonth(), day);
-        const key = dateKey(current);
-        const dayTasks = tasksByDate.get(key) || [];
-
-        dayTasks.forEach((task) => {
-          if (!monthLegendMap.has(task.category)) monthLegendMap.set(task.category, task.color);
+      if (dayTasks.length > 0) {
+        dayTasks.forEach(function (task) {
+          cards +=
+            '<li class="task-item" style="border-left-color:' + task.color + '">' +
+            '<strong>' + task.title + '</strong>' +
+            '<span>' +
+            task.startDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) +
+            ' - ' +
+            task.endDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) +
+            '</span>' +
+            '<small>' + task.category + '</small>' +
+            '</li>';
         });
-
-        const bullets = dayTasks.slice(0, 4).map((task) =>
-          `<span class="bullet" style="background:\${task.color}" title="\${task.title}"></span>`
-        ).join('');
-
-        cells.push(`
-          <div class="calendar-cell">
-            <div class="calendar-top">
-              <strong>\${day}</strong>
-              <div class="bullets">\${bullets}</div>
-            </div>
-          </div>`);
+      } else {
+        cards = '<li class="empty">Sem tarefas</li>';
       }
 
-      document.getElementById('calendar-grid').innerHTML = cells.join('');
-
-      const legend = Array.from(monthLegendMap.entries())
-        .sort((a, b) => a[0].localeCompare(b[0], 'pt-BR'))
-        .map(([category, color]) => `<span class="legend-item"><span class="bullet" style="background:\${color}"></span>\${category}</span>`)
-        .join('');
-
-      document.getElementById('month-legend').innerHTML = legend || '<span class="empty">Sem categorias neste mês.</span>';
+      html +=
+        '<article class="day-column">' +
+        '<h3>' +
+        dayNames[day.getDay()] + ', ' +
+        day.toLocaleDateString('pt-BR') +
+        '</h3>' +
+        '<ul>' + cards + '</ul>' +
+        '</article>';
     }
 
-    function renderAll() {
-      renderWeek();
-      renderMonth();
+    grid.innerHTML = html;
+  }
+
+  function renderMonth() {
+    const monthRef = new Date(currentWeek);
+    const monthStart = new Date(monthRef.getFullYear(), monthRef.getMonth(), 1);
+    const monthEnd = new Date(monthRef.getFullYear(), monthRef.getMonth() + 1, 0);
+
+    document.getElementById('month-title').textContent =
+      'Visão mensal (' +
+      monthRef.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }) +
+      ')';
+
+    document.getElementById('calendar-head').innerHTML =
+      dayNames.map(function (d) { return '<span>' + d + '</span>'; }).join('');
+
+    const cells = [];
+    const monthLegendMap = new Map();
+
+    for (let i = 0; i < monthStart.getDay(); i += 1) {
+      cells.push('<div class="calendar-cell muted"></div>');
     }
 
-    document.getElementById('prev-week').addEventListener('click', () => {
-      currentWeek.setDate(currentWeek.getDate() - 7);
-      currentWeek = startOfWeek(currentWeek);
-      renderAll();
-    });
+    for (let day = 1; day <= monthEnd.getDate(); day += 1) {
+      const current = new Date(monthRef.getFullYear(), monthRef.getMonth(), day);
+      const key = dateKey(current);
+      const dayTasks = tasksByDate.get(key) || [];
 
-    document.getElementById('next-week').addEventListener('click', () => {
-      currentWeek.setDate(currentWeek.getDate() + 7);
-      currentWeek = startOfWeek(currentWeek);
-      renderAll();
-    });
+      dayTasks.forEach(function (task) {
+        if (!monthLegendMap.has(task.category)) {
+          monthLegendMap.set(task.category, task.color);
+        }
+      });
 
+      const bullets = dayTasks.slice(0, 4).map(function (task) {
+        return '<span class="bullet" style="background:' + task.color + '" title="' + task.title + '"></span>';
+      }).join('');
+
+      cells.push(
+        '<div class="calendar-cell">' +
+        '<div class="calendar-top">' +
+        '<strong>' + day + '</strong>' +
+        '<div class="bullets">' + bullets + '</div>' +
+        '</div>' +
+        '</div>'
+      );
+    }
+
+    document.getElementById('calendar-grid').innerHTML = cells.join('');
+
+    const legend = Array.from(monthLegendMap.entries())
+      .sort(function (a, b) { return a[0].localeCompare(b[0], 'pt-BR'); })
+      .map(function (entry) {
+        return '<span class="legend-item">' +
+          '<span class="bullet" style="background:' + entry[1] + '"></span>' +
+          entry[0] +
+          '</span>';
+      })
+      .join('');
+
+    document.getElementById('month-legend').innerHTML =
+      legend || '<span class="empty">Sem categorias neste mês.</span>';
+  }
+
+  function renderAll() {
+    renderWeek();
+    renderMonth();
+  }
+
+  document.getElementById('prev-week').addEventListener('click', function () {
+    currentWeek.setDate(currentWeek.getDate() - 7);
+    currentWeek = startOfWeek(currentWeek);
     renderAll();
-  </script>
+  });
+
+  document.getElementById('next-week').addEventListener('click', function () {
+    currentWeek.setDate(currentWeek.getDate() + 7);
+    currentWeek = startOfWeek(currentWeek);
+    renderAll();
+  });
+
+  renderAll();
+</script>
 </body>
 </html>`;
 
