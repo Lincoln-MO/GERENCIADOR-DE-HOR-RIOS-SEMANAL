@@ -133,13 +133,15 @@ export default function PlannerPage() {
     return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0], 'pt-BR'));
   }, [tasks]);
 
-  const handleAddTask = (task: TaskEvent) => {
-    const allowOverlap = !hasConflict(task, tasks)
+  const handleAddTask = (newTasks: TaskEvent[]) => {
+    const hasAnyConflict = newTasks.some((task) => hasConflict(task, tasks));
+
+    const allowOverlap = !hasAnyConflict
       ? true
-      : window.confirm('Conflito detectado. Deseja permitir sobreposição desta tarefa?');
+      : window.confirm('Conflito detectado em uma ou mais tarefas. Deseja permitir sobreposição?');
 
     if (!allowOverlap) return;
-    setTasks((prev) => addTaskWithConflictCheck(prev, task, allowOverlap));
+    setTasks((prev) => newTasks.reduce((acc, task) => addTaskWithConflictCheck(acc, task, allowOverlap), prev));
   };
 
   const removeTask = (taskId: string) => {
