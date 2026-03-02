@@ -10,9 +10,10 @@ Configure em ambos provedores:
 1. Importar repositório no painel Vercel.
 2. Framework detectado: Next.js.
 3. Build Command: `npm run vercel-build`.
-4. Install Command: `npm install`.
-5. Adicionar variáveis de ambiente.
-6. Deploy.
+Em **Project Name**, use `gerenciador-de-horarios-semanal-app-v2` (ou outro nome único) para evitar conflito de projeto já existente.
+5. Install Command: `npm install`.
+6. Adicionar variáveis de ambiente.
+7. Deploy.
 
 Health check após deploy:
 - `https://SEU_DOMINIO/api/health`

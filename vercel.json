@@ -2,5 +2,6 @@
   "framework": "nextjs",
   "buildCommand": "npm run vercel-build",
   "installCommand": "npm install",
-  "outputDirectory": ".next"
+  "outputDirectory": ".next",
+  "name": "gerenciador-de-horarios-semanal-app-v2"
 }
