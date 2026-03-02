@@ -6,6 +6,7 @@ import timeGridPlugin from '@fullcalendar/timegrid';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import type { DatesSetArg, EventChangeArg, EventClickArg } from '@fullcalendar/core';
+import ptBrLocale from '@fullcalendar/core/locales/pt-br';
 import { TaskEvent, CalendarView } from '@/mvc/models/task.model';
 
 interface PlannerCalendarProps {
@@ -75,7 +76,14 @@ export function PlannerCalendar({ events, view, compact, slotMinTime, slotMaxTim
         ref={calendarRef}
         plugins={[timeGridPlugin, dayGridPlugin, interactionPlugin]}
         initialView={view}
+        locale={ptBrLocale}
         headerToolbar={false}
+        buttonText={{
+          today: 'Hoje',
+          month: 'Mês',
+          week: 'Semana',
+          day: 'Dia'
+        }}
         editable
         selectable
         datesSet={handleDatesSet}
@@ -89,6 +97,8 @@ export function PlannerCalendar({ events, view, compact, slotMinTime, slotMaxTim
         slotDuration="00:15:00"
         snapDuration="00:15:00"
         slotLabelInterval="00:30:00"
+        slotLabelFormat={{ hour: '2-digit', minute: '2-digit', hour12: false }}
+        eventTimeFormat={{ hour: '2-digit', minute: '2-digit', hour12: false }}
         slotMinTime={slotMinTime}
         slotMaxTime={slotMaxTime}
         events={events.map((event) => ({

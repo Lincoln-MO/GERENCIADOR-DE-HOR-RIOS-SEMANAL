@@ -125,13 +125,13 @@ export default function PlannerPage() {
 
   const legendItems = useMemo(() => {
     const map = new Map<string, string>();
-    filteredTasks.forEach((task) => {
+    tasks.forEach((task) => {
       if (!map.has(task.category)) {
         map.set(task.category, task.color);
       }
     });
-    return Array.from(map.entries());
-  }, [filteredTasks]);
+    return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0], 'pt-BR'));
+  }, [tasks]);
 
   const handleAddTask = (task: TaskEvent) => {
     const allowOverlap = !hasConflict(task, tasks)
@@ -301,7 +301,7 @@ export default function PlannerPage() {
       <section className="card">
         <h2 className="mb-2 text-sm font-semibold">Legenda de categorias</h2>
         <div className="flex flex-wrap gap-2 text-sm">
-          {legendItems.length === 0 && <span className="text-slate-600 dark:text-slate-300">Sem tarefas na categoria selecionada.</span>}
+          {legendItems.length === 0 && <span className="text-slate-600 dark:text-slate-300">Nenhuma categoria cadastrada ainda. Crie uma tarefa para aparecer aqui automaticamente.</span>}
           {legendItems.map(([category, color]) => (
             <span key={category} className="inline-flex items-center gap-2 rounded-full border px-3 py-1">
               <span className="h-3 w-3 rounded-full" style={{ backgroundColor: color }} />
