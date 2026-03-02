@@ -141,6 +141,7 @@ export default function PlannerPage() {
       : window.confirm('Conflito detectado em uma ou mais tarefas. Deseja permitir sobreposição?');
 
     if (!allowOverlap) return;
+
     setTasks((prev) => newTasks.reduce((acc, task) => addTaskWithConflictCheck(acc, task, allowOverlap), prev));
   };
 
@@ -165,18 +166,62 @@ export default function PlannerPage() {
 
     const payloadBase64 = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
 
-    const cards = tasks
-      .map((task) => `
-        <article class="task-card">
-          <div class="task-dot" style="background:${task.color}"></div>
-          <div>
-            <h3>${task.title}</h3>
-            <p><strong>Categoria:</strong> ${task.category}</p>
-            <p><strong>Início:</strong> ${new Date(task.start).toLocaleString('pt-BR')}</p>
-            <p><strong>Fim:</strong> ${new Date(task.end).toLocaleString('pt-BR')}</p>
+    const dayNames = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+
+    const weekNow = new Date();
+    const weekStart = new Date(weekNow);
+    weekStart.setHours(0, 0, 0, 0);
+    weekStart.setDate(weekNow.getDate() - weekNow.getDay());
+
+    const weekColumns = Array.from({ length: 7 }, (_, index) => {
+      const date = new Date(weekStart);
+      date.setDate(weekStart.getDate() + index);
+
+      const dayTasks = tasks
+        .filter((task) => task.dayOfWeek === index)
+        .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+
+      const taskCards = dayTasks.length
+        ? dayTasks.map((task) => `
+            <li class="task-item" style="border-left:4px solid ${task.color}">
+              <strong>${task.title}</strong>
+              <span>${new Date(task.start).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} - ${new Date(task.end).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+              <small>${task.category}</small>
+            </li>`).join('')
+        : '<li class="empty">Sem tarefas</li>';
+
+      return `
+        <article class="day-column">
+          <h3>${dayNames[index]}, ${date.toLocaleDateString('pt-BR')}</h3>
+          <ul>${taskCards}</ul>
+        </article>`;
+    }).join('');
+
+    const monthNow = new Date();
+    const monthStart = new Date(monthNow.getFullYear(), monthNow.getMonth(), 1);
+    const monthEnd = new Date(monthNow.getFullYear(), monthNow.getMonth() + 1, 0);
+
+    const calendarCells: string[] = [];
+    const leading = monthStart.getDay();
+    for (let i = 0; i < leading; i += 1) {
+      calendarCells.push('<div class="calendar-cell muted"></div>');
+    }
+
+    for (let day = 1; day <= monthEnd.getDate(); day += 1) {
+      const current = new Date(monthNow.getFullYear(), monthNow.getMonth(), day);
+      const weekday = current.getDay();
+      const dayTasks = tasks.filter((task) => task.dayOfWeek === weekday);
+
+      const bullets = dayTasks.slice(0, 3).map((task) => `<span class="bullet" style="background:${task.color}" title="${task.title}"></span>`).join('');
+
+      calendarCells.push(`
+        <div class="calendar-cell">
+          <div class="calendar-top">
+            <strong>${day}</strong>
+            <div class="bullets">${bullets}</div>
           </div>
-        </article>`)
-      .join('');
+        </div>`);
+    }
 
     const html = `<!doctype html>
 <html lang="pt-BR">
@@ -185,32 +230,56 @@ export default function PlannerPage() {
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Planejamento exportado</title>
   <style>
-    body { font-family: Inter, Arial, sans-serif; margin: 0; background: #f8fafc; color: #0f172a; }
-    .container { max-width: 900px; margin: 0 auto; padding: 24px; }
-    .header { background: #fff; border-radius: 12px; padding: 16px; margin-bottom: 16px; border: 1px solid #e2e8f0; }
-    .grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
-    .task-card { display: flex; gap: 12px; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; }
-    .task-card h3 { margin: 0 0 6px; font-size: 16px; }
-    .task-card p { margin: 4px 0; font-size: 14px; }
-    .task-dot { width: 10px; border-radius: 999px; }
-    .note { margin-top: 18px; font-size: 13px; color: #475569; }
+    body { font-family: Inter, Arial, sans-serif; margin: 0; background: #0b132b; color: #e2e8f0; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+    .header { background: #111c44; border: 1px solid #26335f; border-radius: 14px; padding: 16px; margin-bottom: 18px; }
+    h1,h2,h3 { margin: 0; }
+    h2 { margin-bottom: 10px; font-size: 18px; }
+    .subtitle { color: #93a4d1; margin-top: 8px; font-size: 14px; }
+    .week-grid { display: grid; grid-template-columns: repeat(7, minmax(180px, 1fr)); gap: 10px; overflow-x: auto; padding-bottom: 4px; }
+    .day-column { background: #111c44; border: 1px solid #26335f; border-radius: 12px; padding: 10px; min-height: 220px; }
+    .day-column h3 { font-size: 14px; margin-bottom: 8px; }
+    .day-column ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+    .task-item { background: #0f1738; border: 1px solid #1f2a52; border-radius: 8px; padding: 8px; display: flex; flex-direction: column; gap: 3px; }
+    .task-item strong { font-size: 13px; }
+    .task-item span, .task-item small { font-size: 12px; color: #b8c4e8; }
+    .empty { color: #8ea0cd; font-size: 12px; }
+    .month-wrap { margin-top: 20px; background: #111c44; border: 1px solid #26335f; border-radius: 12px; padding: 12px; }
+    .calendar-head { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-bottom: 8px; color: #9cb0df; font-size: 12px; }
+    .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
+    .calendar-cell { min-height: 72px; background: #0f1738; border: 1px solid #1f2a52; border-radius: 8px; padding: 8px; }
+    .calendar-cell.muted { opacity: 0.35; }
+    .calendar-top { display: flex; justify-content: space-between; align-items: center; }
+    .bullets { display: flex; gap: 4px; }
+    .bullet { width: 8px; height: 8px; border-radius: 999px; display: inline-block; }
+    .note { margin-top: 16px; color: #93a4d1; font-size: 13px; }
   </style>
 </head>
 <body>
-  <main class="container">
-    <section class="header">
-      <h1>Planejamento semanal exportado</h1>
-      <p>Gerado em: ${new Date(payload.exportedAt).toLocaleString('pt-BR')}</p>
-      <p>Total de tarefas: ${tasks.length}</p>
+  <main class="container"> 
+    <section class="header"> 
+      <h1>Planejador Semanal — Exportação visual</h1>
+      <p class="subtitle">Gerado em: ${new Date(payload.exportedAt).toLocaleString('pt-BR')} • Total de tarefas: ${tasks.length}</p>
     </section>
-    <section class="grid">${cards || '<p>Nenhuma tarefa cadastrada.</p>'}</section>
-    <p class="note">Este arquivo é somente visualização e não é editável diretamente.</p>
+
+    <section>
+      <h2>Visão semanal (como no site)</h2>
+      <div class="week-grid">${weekColumns}</div>
+    </section>
+
+    <section class="month-wrap">
+      <h2>Visão mensal (${monthNow.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })})</h2>
+      <div class="calendar-head">${dayNames.map((d) => `<span>${d}</span>`).join('')}</div>
+      <div class="calendar-grid">${calendarCells.join('')}</div>
+    </section>
+
+    <p class="note">Arquivo somente para visualização. Para editar, importe este HTML no sistema.</p>
   </main>
   ${EXPORT_MARKER_START}${payloadBase64}${EXPORT_MARKER_END}
 </body>
 </html>`;
 
-    downloadFile(`planejamento-${new Date().toISOString().slice(0, 10)}.html`, html, 'text/html;charset=utf-8');
+    downloadFile(`planejamento-visual-${new Date().toISOString().slice(0, 10)}.html`, html, 'text/html;charset=utf-8');
   };
 
   const handleImportFile = async (event: ChangeEvent<HTMLInputElement>) => {
