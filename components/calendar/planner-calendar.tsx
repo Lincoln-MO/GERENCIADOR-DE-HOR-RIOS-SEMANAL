@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
-import type { EventChangeArg } from '@fullcalendar/core';
+import type { DatesSetArg, EventChangeArg, EventClickArg } from '@fullcalendar/core';
 import { TaskEvent, CalendarView } from '@/mvc/models/task.model';
 
 interface PlannerCalendarProps {
@@ -14,18 +14,31 @@ interface PlannerCalendarProps {
   compact: boolean;
   slotMinTime: string;
   slotMaxTime: string;
+  jumpToDate?: string;
   onEventChange: (event: { id: string; start: string; end: string }) => void;
+  onEventDelete: (id: string) => void;
 }
 
-export function PlannerCalendar({ events, view, compact, slotMinTime, slotMaxTime, onEventChange }: PlannerCalendarProps) {
+export function PlannerCalendar({ events, view, compact, slotMinTime, slotMaxTime, jumpToDate, onEventChange, onEventDelete }: PlannerCalendarProps) {
   const calendarRef = useRef<FullCalendar | null>(null);
+  const [periodLabel, setPeriodLabel] = useState('');
 
   useEffect(() => {
     const api = calendarRef.current?.getApi();
     if (api) {
       api.changeView(view);
+      setPeriodLabel(api.view.title);
     }
   }, [view]);
+
+  useEffect(() => {
+    if (!jumpToDate) return;
+    const api = calendarRef.current?.getApi();
+    if (api) {
+      api.gotoDate(jumpToDate);
+      setPeriodLabel(api.view.title);
+    }
+  }, [jumpToDate]);
 
   const handleEventChange = (changeInfo: EventChangeArg) => {
     if (!changeInfo.event.start || !changeInfo.event.end) return;
@@ -37,8 +50,27 @@ export function PlannerCalendar({ events, view, compact, slotMinTime, slotMaxTim
     });
   };
 
+  const handleEventClick = (clickInfo: EventClickArg) => {
+    const shouldDelete = window.confirm(`Excluir a tarefa "${clickInfo.event.title}"?`);
+    if (shouldDelete) {
+      onEventDelete(clickInfo.event.id);
+    }
+  };
+
+  const handleDatesSet = (datesInfo: DatesSetArg) => {
+    setPeriodLabel(datesInfo.view.title);
+  };
+
   return (
     <div id="planner-grid" className="card overflow-hidden">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-3 py-2 dark:border-slate-700">
+        <div className="flex gap-2">
+          <button className="rounded border px-3 py-1 text-sm" onClick={() => calendarRef.current?.getApi().prev()}>Anterior</button>
+          <button className="rounded border px-3 py-1 text-sm" onClick={() => calendarRef.current?.getApi().today()}>Hoje</button>
+          <button className="rounded border px-3 py-1 text-sm" onClick={() => calendarRef.current?.getApi().next()}>Próximo</button>
+        </div>
+        <p className="text-sm font-medium text-slate-700 dark:text-slate-200">{periodLabel}</p>
+      </div>
       <FullCalendar
         ref={calendarRef}
         plugins={[timeGridPlugin, dayGridPlugin, interactionPlugin]}
@@ -46,12 +78,17 @@ export function PlannerCalendar({ events, view, compact, slotMinTime, slotMaxTim
         headerToolbar={false}
         editable
         selectable
+        datesSet={handleDatesSet}
         eventChange={handleEventChange}
         eventDrop={handleEventChange}
         eventResize={handleEventChange}
+        eventClick={handleEventClick}
         weekends
         eventResizableFromStart
         dayMaxEventRows={compact ? 2 : 8}
+        slotDuration="00:15:00"
+        snapDuration="00:15:00"
+        slotLabelInterval="00:30:00"
         slotMinTime={slotMinTime}
         slotMaxTime={slotMaxTime}
         events={events.map((event) => ({
